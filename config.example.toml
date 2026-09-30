@@ -391,6 +391,13 @@ api_route_model_name = ""
 ollama_base_url = ""
 ollama_model_name = ""
 
+# Ollama Cloud, models hosted on ollama.com without a local Ollama install.
+# API key: https://ollama.com/settings/keys
+# Model list: https://ollama.com/search?c=cloud (for example "gpt-oss:120b")
+ollama_cloud_api_key = ""
+ollama_cloud_base_url = ""
+ollama_cloud_model_name = ""
+
 # Claude Code (Claude Pro / Max / Team subscription).
 # Uses the locally installed, logged-in `claude` CLI in headless mode instead of
 # an API key, so no Anthropic API credit is needed. Requirements:

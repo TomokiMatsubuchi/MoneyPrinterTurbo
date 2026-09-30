@@ -435,6 +435,16 @@ LLM_PROVIDER_REGISTRY = (
         requires_api_key=False,
         show_api_key=False,
     ),
+    # Ollama Cloud 与本地 Ollama 共用模型命名，但地址固定且必须携带 API Key，
+    # 所以单独声明一个 Provider，避免云端配置沿用本机默认地址。
+    LLMProviderSpec(
+        "ollama_cloud",
+        "Ollama Cloud",
+        api_key_url="https://ollama.com/settings/keys",
+        default_model="gpt-oss:120b",
+        default_base_url="https://ollama.com/v1",
+        model_docs_url="https://ollama.com/search?c=cloud",
+    ),
     # Claude 订阅（Pro / Max / Team）不签发 API Key，凭证只能由 Claude Code
     # 官方客户端使用，因此这个 Provider 不走 HTTP 接口，而是调用本机已登录
     # 的 claude CLI。模型名留空即沿用 CLI 当前的默认模型。

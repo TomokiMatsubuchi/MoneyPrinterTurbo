@@ -220,6 +220,7 @@
     "Account ID": "Hesab ID-si",
     "Model Name": "Modelin adı",
     "Groq Model List Load Failed": "Hazırda Groq model siyahısını yükləmək mümkün deyil. Modelin adını yenə də əl ilə daxil etmək olar; o, yaratma zamanı yoxlanılacaq.",
+    "Ollama Cloud Model List Load Failed": "Hazırda Ollama Cloud model siyahısını yükləmək mümkün deyil. Modelin adını yenə də əl ilə daxil etmək olar; o, yaratma zamanı yoxlanılacaq.",
     "Groq API Key Required for Model List": "Mövcud modelləri avtomatik yükləmək üçün Groq API açarı əlavə edilməlidir.",
     "Secret Key": "Məxfi açar",
     "Please Enter the LLM API Key": "**LLM API açarı** daxil edilməlidir",

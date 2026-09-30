@@ -2670,6 +2670,37 @@ def get_groq_model_ids(api_key: str, base_url: str) -> list[str]:
         return []
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def get_ollama_cloud_model_ids(base_url: str) -> list[str]:
+    """读取 Ollama Cloud 的模型列表。
+
+    ollama.com 的 `/v1/models` 是公开接口，未配置 API Key 时也能列出云端模型，
+    因此这里只依赖 Base URL；网络异常时返回空列表，由界面退回手动输入。
+    """
+    normalized_base_url = (
+        (base_url or "https://ollama.com/v1").strip().rstrip("/")
+    )
+    models_url = f"{normalized_base_url}/models"
+
+    try:
+        response = requests.get(models_url, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+        data = payload.get("data", [])
+
+        model_ids = []
+        for item in data:
+            if isinstance(item, dict):
+                model_id = item.get("id")
+                if isinstance(model_id, str) and model_id.strip():
+                    model_ids.append(model_id.strip())
+
+        return sorted(set(model_ids))
+    except Exception as e:
+        logger.warning(f"failed to fetch ollama cloud models: {e}")
+        return []
+
+
 def _get_material_api_keys(config_key):
     """将配置中的素材 API Key 统一转换为 WebUI 可编辑字符串。"""
     api_keys = config.app.get(config_key, [])
@@ -3533,6 +3564,33 @@ def _render_settings_dialog():
                         llm_form_panel.caption(
                             tr("Groq API Key Required for Model List")
                         )
+            elif llm_provider == "ollama_cloud":
+                # 云端模型列表可自动获取，因此改用下拉选择，避免用户手写模型名。
+                # 列表接口失败时退回手动输入，不影响 Base URL 自定义。
+                ollama_cloud_models = get_ollama_cloud_model_ids(
+                    base_url=st_llm_base_url or llm_base_url,
+                )
+
+                if ollama_cloud_models:
+                    selected_index = 0
+                    if llm_model_name in ollama_cloud_models:
+                        selected_index = ollama_cloud_models.index(llm_model_name)
+
+                    st_llm_model_name = llm_form_panel.selectbox(
+                        tr("Model Name"),
+                        options=ollama_cloud_models,
+                        index=selected_index,
+                        key="ollama_cloud_model_name_select",
+                    )
+                else:
+                    st_llm_model_name = llm_form_panel.text_input(
+                        tr("Model Name"),
+                        value=llm_model_name,
+                        key="ollama_cloud_model_name_input",
+                    )
+                    llm_form_panel.caption(
+                        tr("Ollama Cloud Model List Load Failed")
+                    )
             else:
                 st_llm_model_name = llm_form_panel.text_input(
                     tr("Model Name"),

@@ -226,6 +226,7 @@
     "Account ID": "ID del compte (al tauler de Cloudflare)",
     "Model Name": "Nom del model",
     "Groq Model List Load Failed": "No s'ha pogut carregar la llista de models de Groq. Pots introduir un model manualment; es comprovarà durant la generació.",
+    "Ollama Cloud Model List Load Failed": "No s'ha pogut carregar la llista de models d'Ollama Cloud. Pots introduir un model manualment; es comprovarà durant la generació.",
     "Groq API Key Required for Model List": "Afegeix una clau API de Groq per carregar els models disponibles.",
     "Secret Key": "Clau secreta",
     "Please Enter the LLM API Key": "Introdueix la **clau API del model de llenguatge**",

@@ -226,6 +226,7 @@
     "Account ID": "ID account",
     "Model Name": "Nome del modello",
     "Groq Model List Load Failed": "Impossibile caricare l'elenco dei modelli Groq in questo momento. Puoi comunque inserire manualmente il nome di un modello; verrà convalidato durante la generazione.",
+    "Ollama Cloud Model List Load Failed": "Impossibile caricare l'elenco dei modelli Ollama Cloud in questo momento. Puoi comunque inserire manualmente il nome di un modello; verrà convalidato durante la generazione.",
     "Groq API Key Required for Model List": "Aggiungi una chiave API Groq per caricare automaticamente i modelli disponibili.",
     "Secret Key": "Chiave segreta",
     "Please Enter the LLM API Key": "Inserisci la **chiave API LLM**",
