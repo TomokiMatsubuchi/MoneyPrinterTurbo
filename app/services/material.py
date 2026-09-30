@@ -4,6 +4,7 @@ import io
 import math
 import os
 import random
+import re
 import tempfile
 import threading
 import time
@@ -436,6 +437,34 @@ def search_videos_pexels(
     return []
 
 
+def _pixabay_tag_match_score(tags, search_term: str) -> int:
+    """
+    统计素材 tags 与搜索词的吻合个数，用于抵消 Pixabay 按热度排序的噪声。
+
+    素材站的查询是宽松匹配："marble run" 的首位可能是 tags 含 "running water"
+    的大理石瓷砖素材，只因为 "run" 是 "running" 的子串。这里按 tag 的单词逐个
+    比较（允许单复数差异），让真正命中的素材先进入候选池。
+    """
+    tag_words = {
+        word
+        for tag in str(tags or "").split(",")
+        for word in re.split(r"[^0-9a-z]+", tag.strip().lower())
+        if word
+    }
+    terms = [
+        term for term in re.split(r"[^0-9a-z]+", str(search_term or "").lower())
+        if term
+    ]
+    return sum(
+        1
+        for term in terms
+        if any(
+            term == tag_word or term.rstrip("s") == tag_word.rstrip("s")
+            for tag_word in tag_words
+        )
+    )
+
+
 def search_videos_pixabay(
     search_term: str,
     minimum_duration: int,
@@ -507,6 +536,18 @@ def search_videos_pixabay(
             logger.error("pixabay video search returned an unsupported response")
             return video_items
         videos = response["hits"]
+        # Pixabay 按热度返回结果，多词查询时只沾到一个词的素材会排在使用词前面
+        # （例如 "dominoes falling" 的首位是 "diamonds, jewels, rain, falling"）。
+        # 这里按 tags 的吻合数重排，让真正命中的素材先进入候选；同分保持原顺序。
+        videos = sorted(
+            videos,
+            key=lambda hit: (
+                _pixabay_tag_match_score(hit.get("tags"), search_term)
+                if isinstance(hit, dict)
+                else 0
+            ),
+            reverse=True,
+        )
         # loop through each video in the result
         for v in videos:
             if not isinstance(v, dict):
