@@ -1856,6 +1856,7 @@ support_locales = [
     "es-ES",
     "fr-FR",
     "it-IT",
+    "ja-JP",
     "ru-RU",
     "vi-VN",
     "th-TH",
