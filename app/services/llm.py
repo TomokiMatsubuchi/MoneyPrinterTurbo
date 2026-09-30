@@ -780,27 +780,6 @@ def generate_script(
         f"has_custom_system_prompt={bool(custom_system_prompt.strip())}"
     )
 
-    def format_response(response):
-        # Clean the script
-        # Remove asterisks, hashes
-        response = response.replace("*", "")
-        response = response.replace("#", "")
-
-        # Remove markdown syntax.  Use non-greedy .*? so each bracket/paren
-        # group is removed independently; the greedy form would eat all text
-        # between the first opener and the last closer on the same line.
-        response = re.sub(r"\[.*?\]", "", response)
-        response = re.sub(r"\(.*?\)", "", response)
-
-        # Split the script into paragraphs
-        paragraphs = response.split("\n\n")
-
-        # Select the specified number of paragraphs
-        # selected_paragraphs = paragraphs[:paragraph_number]
-
-        # Join the selected paragraphs into a single string
-        return "\n\n".join(paragraphs)
-
     for i in range(_max_retries):
         try:
             if app_config is None:
@@ -812,7 +791,7 @@ def generate_script(
                 # that text through would make the task treat it as narration.
                 raise ValueError(response)
             if response:
-                candidate = format_response(response)
+                candidate = _normalize_script_response(response)
             else:
                 logging.error("gpt returned an empty response")
                 candidate = ""
@@ -834,6 +813,123 @@ def generate_script(
     else:
         logger.success(f"completed: \n{final_script}")
     return final_script.strip()
+
+
+def _normalize_script_response(response: str) -> str:
+    """清理模型返回的脚本文本，与生成、改写两条链路共用同一套规则。"""
+    # Remove asterisks, hashes
+    response = response.replace("*", "")
+    response = response.replace("#", "")
+
+    # Remove markdown syntax.  Use non-greedy .*? so each bracket/paren
+    # group is removed independently; the greedy form would eat all text
+    # between the first opener and the last closer on the same line.
+    response = re.sub(r"\[.*?\]", "", response)
+    response = re.sub(r"\(.*?\)", "", response)
+
+    # Split the script into paragraphs and join them back into a single string.
+    return "\n\n".join(response.split("\n\n"))
+
+
+def build_script_revision_prompt(
+    video_subject: str,
+    video_script: str,
+    instruction: str,
+    language: str = "",
+) -> str:
+    """
+    构建“按用户指示改写现有台本”的提示词。
+
+    改写必须保留原台本的主题与语言，只按指示调整表达，因此单独维护一套规则，
+    避免默认的生成提示词把已有台本当成全新内容重写。自定义 system prompt 也
+    不在这里拼接：它描述的是“怎么生成”，与“怎么改”并不通用。
+    """
+    return f"""
+# Role: Video Script Editor
+
+## Goals:
+Rewrite the current video script so that it follows the revision request, keeping the same topic.
+
+## Constrains:
+1. keep the language of the current script.
+2. follow the revision request precisely, and keep everything else as close to the current script as possible.
+3. keep the paragraph structure and roughly the length of the current script unless the revision request asks otherwise.
+4. keep every [pause: 2s] and [silence: 1s] tag the current script already contains; add such tags only when the revision request asks for pauses.
+5. you must not include any type of markdown or formatting in the script, never use a title.
+6. only return the raw content of the rewritten script, without explanations, notes, comments or the original text.
+
+## Context:
+### Video Subject
+{video_subject}
+
+### Language
+{language or "same language as the current script"}
+
+### Current Script
+{video_script}
+
+### Revision Request
+{instruction}
+""".strip()
+
+
+def revise_script(
+    video_subject: str,
+    video_script: str,
+    instruction: str,
+    language: str = "",
+    app_config=None,
+) -> str:
+    """
+    按用户指示改写现有台本；台本或指示为空、或模型重试均失败时返回空字符串。
+
+    返回空字符串而不是错误文本，调用方（WebUI、API）只做真值判断即可，避免把
+    Provider 的错误文案当成台本写回编辑框。
+    """
+    current_script = (video_script or "").strip()
+    instruction = _limit_script_text(
+        instruction, MAX_SCRIPT_PROMPT_LENGTH, "script_revision_instruction"
+    )
+    if not current_script or not instruction:
+        return ""
+
+    prompt = build_script_revision_prompt(
+        video_subject=video_subject,
+        video_script=current_script,
+        instruction=instruction,
+        language=language,
+    )
+    logger.info(
+        "revising video script: "
+        f"subject={video_subject}, script_chars={len(current_script)}, "
+        f"instruction_chars={len(instruction)}"
+    )
+
+    revised_script = ""
+    for i in range(_max_retries):
+        try:
+            if app_config is None:
+                response = _generate_response(prompt=prompt)
+            else:
+                response = _generate_response(prompt=prompt, app_config=app_config)
+            if isinstance(response, str) and response.startswith("Error: "):
+                # Provider 故障必须以异常形式进入重试分支，不能被当成改写结果。
+                raise ValueError(response)
+            candidate = _normalize_script_response(response) if response else ""
+            if candidate:
+                revised_script = candidate
+                break
+        except Exception as e:
+            logger.error(f"failed to revise script: {e}")
+
+        if i < _max_retries - 1:
+            logger.warning(f"failed to revise video script, trying again... {i + 1}")
+
+    if not revised_script:
+        logger.error("failed to revise video script after retries")
+    else:
+        logger.success(f"completed: \n{revised_script}")
+    return revised_script.strip()
 
 
 def _strip_code_fence(text: str) -> str:

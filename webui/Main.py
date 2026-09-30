@@ -1521,6 +1521,19 @@ def _apply_pending_task_restore():
     return True
 
 
+def _apply_pending_script_revision():
+    """把改写后的台本写回输入框；必须在渲染台本控件之前调用。"""
+    revised_script = st.session_state.pop("script_revision_result", "")
+    if not revised_script:
+        return False
+
+    # 台本输入框的 key 就是 video_script，Streamlit 只允许在控件实例化之前写入，
+    # 因此按钮处理只保存结果，由下一次渲染开头统一应用。
+    st.session_state["video_script"] = revised_script
+    logger.info("applied revised video script")
+    return True
+
+
 def _apply_restored_params(params):
     """
     把一份完整的生成参数写回页面控件状态。
@@ -5185,6 +5198,45 @@ def _render_script_settings(panel, params):
                 height=180,
                 key="video_script",
             )
+            # 生成済みの台本を捨てずに、指示を与えて書き直す入口。生成ボタンとは
+            # 別にして、AI との往復で少しずつ意図に寄せられるようにする。
+            with st.expander(tr("Revise Script"), expanded=False):
+                revision_instruction = st.text_area(
+                    tr("Revise Script"),
+                    height=90,
+                    max_chars=llm.MAX_SCRIPT_PROMPT_LENGTH,
+                    placeholder=tr("Script Revision Instruction Placeholder"),
+                    key="script_revision_instruction",
+                    label_visibility="collapsed",
+                ).strip()
+                if st.button(
+                    tr("Apply Script Revision"),
+                    key="apply_script_revision",
+                    use_container_width=True,
+                    type="secondary",
+                    icon=":material/auto_fix_high:",
+                    disabled=not (params.video_script or "").strip(),
+                ):
+                    if not revision_instruction:
+                        st.warning(tr("Script Revision Instruction Required"))
+                    else:
+                        with st.spinner(tr("Revising Script")):
+                            revised_script = _run_llm_read_operation(
+                                "revise_script",
+                                lambda app_config_snapshot: llm.revise_script(
+                                    video_subject=params.video_subject,
+                                    video_script=params.video_script,
+                                    instruction=revision_instruction,
+                                    language=params.video_language,
+                                    app_config=app_config_snapshot,
+                                ),
+                            )
+                        if not revised_script:
+                            st.error(tr("Script Revision Failed"))
+                        else:
+                            # 控件已实例化，这里只保存结果，由下一次渲染开头写回。
+                            st.session_state["script_revision_result"] = revised_script
+                            st.rerun()
             if _effective_script_generation_backend() == "loomloom":
                 st.caption(tr("LoomLoom Video Terms Reuse Help"))
             elif st.button(
@@ -8434,6 +8486,9 @@ def _render_application():
     restore_succeeded = st.session_state.pop("task_restore_succeeded", False)
     if restore_applied or restore_succeeded:
         st.success(tr("Task Configuration Loaded"))
+
+    if _apply_pending_script_revision():
+        st.success(tr("Script Revised"))
 
     with st.container(key="main_settings_grid"):
         panel = st.columns(4)
