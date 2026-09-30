@@ -1,0 +1,17 @@
+# Local override for docker-compose.release.yml.
+#
+# The release compose file runs the GHCR image as published, so local changes
+# (the Japanese locale, the Ollama Cloud provider) are invisible and disappear
+# whenever the container is recreated. Mounting the repository over
+# /MoneyPrinterTurbo makes the checked-out source the code that runs, without
+# rebuilding an image.
+#
+# Usage:
+#   docker compose -f docker-compose.release.yml -f docker-compose.override.yml up -d
+services:
+  webui:
+    volumes:
+      - ./:/MoneyPrinterTurbo
+  api:
+    volumes:
+      - ./:/MoneyPrinterTurbo
