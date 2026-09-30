@@ -866,7 +866,7 @@ def generate_terms(
             "the order of topics in the video script."
         )
         ordering_rule = (
-            "6. keep the terms in the same order as the script narration; "
+            "7. keep the terms in the same order as the script narration; "
             "earlier terms must describe earlier visual moments."
         )
         # 有序关键词模式下，示例数量要和 amount 保持一致，避免模型被固定
@@ -896,10 +896,11 @@ def generate_terms(
 
 ## Constrains:
 1. the search terms are to be returned as a json-array of strings.
-2. each search term should consist of 1-3 words, always add the main subject of the video.
+2. each search term must be 2-3 words and name something a stock camera can film: a concrete object with its action, such as "dominoes falling" or "ball rolling track". stay on the video subject, and prefer a different object or action in each term.
 3. you must only return the json-array of strings. you must not return anything else. you must not return the script.
 4. the search terms must be related to the subject of the video.
 5. reply with english search terms only.
+6. never use brand names, product names, programme or film titles, people's names, or abstract ideas such as "inspiration" or "balance"; stock libraries do not tag footage with them.
 {ordering_rule}
 
 ## Output Example:
